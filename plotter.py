@@ -24,13 +24,16 @@ from framework import best_poly_fit
 
 # Parse arguments
 
+cho =  ["energy", "maxenergy", "gmass", "rmass", "jmoment", "twratio",
+                 "comega", "maxomega", "eomega", "radius", "rratio"]
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--files", type = str, required = True,
                     help = "basefiles, eg. 2017_3_13_21_39")
 parser.add_argument("-x", "--xaxis", help = "x axis, eg. energies",
-                    required = True, type = str)
+                    required = True, choices = cho, type = str)
 parser.add_argument("-y", "--yaxis", help = "y axis, eg. gmass",
-                    required = True, type = str)
+                    required = True, choices = cho, type = str)
 parser.add_argument("--static", help = "set static folder",
                     type = str)
 parser.add_argument("-s", "--save", help = "save fig", action = "store_true")
@@ -51,6 +54,45 @@ if (len(sys.argv) == 1):
     sys.exit(1)
 
 args = parser.parse_args()
+
+if plt.rcParams["text.usetex"] is False:
+    plt.rcParams["text.usetex"] = True
+
+if plt.rcParams["text.latex.unicode"] is False:
+    plt.rcParams["text.latex.unicode"] = True
+
+if "siunitx" not in plt.rcParams["text.latex.preamble"]:
+    plt.rcParams["text.latex.preamble"].append(r"\usepackage{siunitx}")
+
+if "microtype" not in plt.rcParams["text.latex.preamble"]:
+    plt.rcParams["text.latex.preamble"].append(r"\usepackage[protrusion=true,factor=900]{microtype}")
+
+def siunitx_ticklabels(ax=None, locale="US", xaxis=True, yaxis=True):
+    """
+    This function uses siunitx to create the ticklabels
+    Main reason is for adjusting the decimal marker properly.
+    The function takes 4 arguments:
+        ax=None     the matplotlib axes to operate on
+                    if set to None (Standard) this will be the current axes
+        locale="DE" The locale parameter for siunitx, one of
+                    "UK", "US", "DE", "FR" oder "ZA"
+        xaxis=True  Boolean, if True the labels for the xaxis are set
+        yaxis=True  Boolean, if True the labels for the yaxis are set
+    """
+
+    if ax is None:
+        ax = plt.gca()
+
+    if xaxis is True:
+        xticks = ax.get_xticks()
+        xlabels = [r"$\num[locale={}]{{{:.2E}}}$".format(locale, tick) for tick in xticks]
+        ax.set_xticklabels(xlabels)
+
+    if yaxis is True:
+        yticks = ax.get_yticks()
+        ylabels = [r"$\num[locale={}]{{{:.2E}}}$".format(locale, tick) for tick in yticks]
+        ax.set_yticklabels(ylabels)
+
 
 # Parse arguments
 
@@ -99,7 +141,7 @@ ystatic = np.loadtxt(fullpathstaticy)
 # Critical point for the static sequence
 if (not notur):
     # Polynomial fit
-    polystatic = np.polyfit(xstatic, ystatic, best_poly_fit(xstatic, ystatic)[0])
+    polystatic = np.polyfit(xstatic, ystatic, best_poly_fit(xstatic, ystatic, 15)[0])
     ps = np.poly1d(polystatic)
     # Find maxima
     crit = ps.deriv().r
@@ -142,51 +184,11 @@ foldersA.sort()
 # Every folder has it's own critical point, prepare the array
 critplt = []
 
-if plt.rcParams["text.usetex"] is False:
-    plt.rcParams["text.usetex"] = True
-    # print("\nWARNING: text.usetex is now set to True\n")
 
-if plt.rcParams["text.latex.unicode"] is False:
-    plt.rcParams["text.latex.unicode"] = True
-    # print("\nWARNING: text.latex.unicode is now set to True\n")
-
-if "siunitx" not in plt.rcParams["text.latex.preamble"]:
-    plt.rcParams["text.latex.preamble"].append(r"\usepackage{siunitx}")
-
-if "microtype" not in plt.rcParams["text.latex.preamble"]:
-    plt.rcParams["text.latex.preamble"].append(r"\usepackage[protrusion=true,factor=900]{microtype}")
-
-
-def siunitx_ticklabels(ax=None, locale="US", xaxis=True, yaxis=True):
-    """
-    This function uses siunitx to create the ticklabels
-    Main reason is for adjusting the decimal marker properly.
-    The function takes 4 arguments:
-        ax=None     the matplotlib axes to operate on
-                    if set to None (Standard) this will be the current axes
-        locale="DE" The locale parameter for siunitx, one of
-                    "UK", "US", "DE", "FR" oder "ZA"
-        xaxis=True  Boolean, if True the labels for the xaxis are set
-        yaxis=True  Boolean, if True the labels for the yaxis are set
-    """
-
-    if ax is None:
-        ax = plt.gca()
-
-    if xaxis is True:
-        xticks = ax.get_xticks()
-        xlabels = [r"$\num[locale={}]{{{:.2f}}}$".format(locale, tick) for tick in xticks]
-        ax.set_xticklabels(xlabels)
-
-    if yaxis is True:
-        yticks = ax.get_yticks()
-        ylabels = [r"$\num[locale={}]{{{:.2f}}}$".format(locale, tick) for tick in yticks]
-        ax.set_yticklabels(ylabels)
+# One color for every curve
+color = iter(cm.rainbow(np.linspace(0, 1, len(foldersA))))
 
 for dA in foldersA:
-    # One color for every curve
-    color = iter(cm.rainbow(np.linspace(0, 1, len(foldersA))))
-
     # folders  = [f for f in os.listdir(os.path.join(basedir, dA))]
     # folders are the folders with fixed A (not static, kepler and ign) ign means ignore
     folders  = [f for f in os.listdir(os.path.join(basedir, dA)) if re.search(r'^((?!static).)*$',f)
@@ -216,7 +218,8 @@ for dA in foldersA:
         fullpathx = os.path.join(basedir, dA, d, args.xaxis + ".dat")
         fullpathy = os.path.join(basedir, dA, d, args.yaxis + ".dat")
         # Ignore if a file is empty
-        if (os.stat(fullpathx).st_size != 0 and os.stat(fullpathy).st_size != 0):
+        if (os.stat(fullpathx).st_size != 0 and os.stat(fullpathy).st_size != 0
+            and sum(1 for line in open(fullpathx)) > 1 and  sum(1 for line in open(fullpathy)) > 1):
             x = np.loadtxt(fullpathx)
             y = np.loadtxt(fullpathy)
             ax.plot(x, y, ',')
@@ -253,18 +256,57 @@ for dA in foldersA:
                     # Critical points should be discarded if they are out of boundaries, if they are too close to
                     # a boundary (which means that maybe they are spourious) and if they are below the static line
                     if (ps(x_crit[k]) < p(x_crit[k]) and x_crit[k] > np.amin(x) and x_crit[k] < np.amax(x)
-                        and x_crit[k] < np.amax(x) - 0.03*np.amax(x) and x_crit[k] > np.amin(x) + 0.03*np.amin(x)):
-                        critx = np.append(critx, x_crit[k])
-                        crity = np.append(crity, y_crit[k])
+                        and x_crit[k] < np.amax(x) - 0.03*np.amax(x) and x_crit[k] > np.amin(x) + 0.03*np.amin(x)
+                        and sum(1 for line in open(fullpathx)) > 25 and sum(1 for line in open(fullpathy)) > 25):
                         zeros += 1
+
+                if(zeros > 1):
+                    print("WARNING: MULTIPLE TURNING POINTS")
+
+                    while True:
+                        user_input = input('{}, {} (1) or {} {} (2) or discard (3) '.format(x_crit[0], y_crit[0], x_crit[1], y_crit[1]))
+                        if user_input in ['1', '2', '3']:
+                            break
+                        else:
+                            print('That is not a valid option!')
+
+                    if user_input == '1':
+                        critx = np.append(critx, x_crit[0])
+                        crity = np.append(crity, y_crit[0])
                         if (out):
-                            print("x = {}, y = {}".format(x_crit[k], y_crit[k]))
-                            print("x = {}, y = {}".format(x_crit[k], y_crit[k]), file = outfile)
-                            print("{} {} {} {} {} {}".format(x_crit[k], y_crit[k],
+                            print("x = {}, y = {}".format(x_crit[0], y_crit[0]))
+                            print("x = {}, y = {}".format(x_crit[0], y_crit[0]), file = outfile)
+                            print("{} {} {} {} {} {}".format(x_crit[0], y_crit[0],
                                                              run[8][0], run2[7][1:5], "A", run[3]), file =
                                   tourfile)
-
-                if (zeros > 1): print("WARNING: MULTIPLE TURNING POINTS")
+                    elif user_input == '2':
+                        critx = np.append(critx, x_crit[1])
+                        crity = np.append(crity, y_crit[1])
+                        if (out):
+                            print("x = {}, y = {}".format(x_crit[1], y_crit[1]))
+                            print("x = {}, y = {}".format(x_crit[1], y_crit[1]), file = outfile)
+                            print("{} {} {} {} {} {}".format(x_crit[1], y_crit[1],
+                                                             run[8][1], run2[7][1:5], "A", run[3]), file =
+                                  tourfile)
+                    elif user_input == '3':
+                        pass
+                # Single zero
+                else:
+                    # I don't know which one it is
+                    for k in range(len(x_crit)):
+                    # Critical points should be discarded if they are out of boundaries, if they are too close to
+                    # a boundary (which means that maybe they are spourious) and if they are below the static line
+                        if (ps(x_crit[k]) < p(x_crit[k]) and x_crit[k] > np.amin(x) and x_crit[k] < np.amax(x)
+                            and x_crit[k] < np.amax(x) - 0.03*np.amax(x) and x_crit[k] > np.amin(x) + 0.03*np.amin(x)
+                            and sum(1 for line in open(fullpathx)) > 25 and sum(1 for line in open(fullpathy)) > 25):
+                            critx = np.append(critx, x_crit[k])
+                            crity = np.append(crity, y_crit[k])
+                            if (out):
+                                print("x = {}, y = {}".format(x_crit[k], y_crit[k]))
+                                print("x = {}, y = {}".format(x_crit[k], y_crit[k]), file = outfile)
+                                print("{} {} {} {} {} {}".format(x_crit[k], y_crit[k],
+                                                                 run[8][0], run2[7][1:5], "A", run[3]), file =
+                                      tourfile)
 
     if (out and notur):
         print("")
@@ -324,7 +366,7 @@ labels = {
     'rratio'    : "Polar Equatorial Ratio",
 }
 
-# siunitx_ticklabels(ax)
+siunitx_ticklabels(ax)
 ax.set_xlabel(labels[args.xaxis])
 ax.set_ylabel(labels[args.yaxis])
 ax.set_title(args.title)

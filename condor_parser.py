@@ -24,12 +24,13 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("-f", "--eos", type = str, required = True,
                     help = "set eos, eg. eosC")
-parser.add_argument("-t", "--task", type = str, choices=["static", "kepler", "rmass", "jmoment"],
+parser.add_argument("-t", "--task", type = str, choices = ["static", "kepler", "rmass", "jmoment"],
                     required = True, help = "define which kind of sequences have to be computed")
 parser.add_argument("-o", "--out", type = str,
                     help = "set output folder")
 parser.add_argument('-N', "--nsequences", action="store", type = int,
-                    required = True, help = "set number of sequences")
+                    help =
+                    "set number of sequences")
 parser.add_argument('-n', "--nmodels", action="store", type = int,
                     required = True, help = "set number of models for each sequence")
 parser.add_argument('-na', "--namodels", action="store", type = int,
@@ -202,7 +203,7 @@ for j in range(0, na):
         print ("Universe     = Standard", file = condorfile)
         print ("InitialDir   = " + os.path.join(parentfolder, folder), file = condorfile)
         # If a job is running for more than 10 minutes, kill it
-        print ("periodic_remove = JobStatus == 2 && CurrentTime-EnteredCurrentStatus > 600", file = condorfile)
+        print ("periodic_remove = JobStatus == 2 && CurrentTime-EnteredCurrentStatus > 300", file = condorfile)
         # print ("Notification = Complete", file = condorfile)
         # print ("notify_user  = spammozzola@gmail.com", file = condorfile)
         print ("", file = condorfile)
