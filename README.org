@@ -1,0 +1,23 @@
+#+TITLE: RNSA - Rotating Neutron Star Analyzer
+
+Rotating Neutron Stars Analyzer (RNSA) is suite for studying rotating neutron star equilibirum
+models constructed using RNS v4.0 (unpublished yet).
+
+* The Suite
+It contains:
+
+** `codor_parser.py`
+  To submit jobs to HTCondor. It supports a vast range of settings.
+
+** `plotter.py`
+  To plot output.
+
+Moreover there is a set of utilities:
+** `cm_colors.py`
+  To produce the TIKZ code to get a rainbow of colors from blue to red.
+
+* User Guide
+Documentation will be provided.
+
+* License
+RNSA is licensed under GNU GPL v3.
