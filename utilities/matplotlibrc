@@ -1,0 +1,36 @@
+backend      : GTK3Agg
+
+### SAVING FIGURES
+path.simplify : True   # When True, simplify paths by removing "invisible"
+                        # points to reduce file size and increase rendering
+                        # speed
+path.simplify_threshold : 0.1  # The threshold of similarity below which
+                                # vertices will be removed in the simplification
+                                # process
+path.snap : True # When True, rectilinear axis-aligned paths will be snapped to
+                  # the nearest pixel when certain criteria are met.  When False,
+                  # paths will never be snapped.
+
+# Directions of ticks
+xtick.direction      : in     # direction: in or out
+ytick.direction      : in     # direction: in or out
+
+### LaTeX customizations. See http://wiki.scipy.org/Cookbook/Matplotlib/UsingTex
+text.usetex         : True  # use latex for all text handling. The following fonts
+                              # are supported through the usual rc parameter settings:
+                              # new century schoolbook, bookman, times, palatino,
+                              # zapf chancery, charter, serif, sans-serif, helvetica,
+                              # avant garde, courier, monospace, computer modern roman,
+                              # computer modern sans serif, computer modern typewriter
+                              # If another font is desired which can loaded using the
+                              # LaTeX \usepackage command, please inquire at the
+                              # matplotlib mailing list
+text.latex.unicode : True # use "ucs" and "inputenc" LaTeX packages for handling
+                            # unicode strings.
+text.latex.preamble : \usepackage{siunitx}, \usepackage[protrusion=true,factor=900]{microtype}
+                            # An example:
+                            # text.latex.preamble : \usepackage{bm},\usepackage{euler}
+                            # The following packages are always loaded with usetex, so
+                            # beware of package collisions: color, geometry, graphicx,
+                            # type1cm, textcomp. Adobe Postscript (PSSNFS) font packages
+                            # may also be loaded, depending on your font settings

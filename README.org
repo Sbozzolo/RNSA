@@ -6,18 +6,37 @@ models constructed using RNS v4.0 (unpublished yet).
 * The Suite
 It contains:
 
-** `codor_parser.py`
-  To submit jobs to HTCondor. It supports a vast range of settings.
-
-** `plotter.py`
-  To plot output.
-
+** codor_parser.py
+   To submit jobs to HTCondor. It supports a vast range of settings.
+** extractor.py
+   To produce single tables corresponding to single sequences
+** plotter.py
+   To plot output.
+** instabilizer.py
+   To compute turning point models.
+** instaplotter.py
+   To plot quantities related to the turning points.
+** instacomparer.py
+* Extra Utilities
 Moreover there is a set of utilities:
-** `cm_colors.py`
-  To produce the TIKZ code to get a rainbow of colors from blue to red.
-
+** cm_colors.py
+   To produce the TikZ code to get a rainbow of colors from blue to red.
+** eosify.sh
+   To convert a EOS table from the RNS v1.1c format to the new RNS v4.0 format
+** stardestroyer.sh
+   To delete every Output_star folder to save storage
+** matplotlibrc
+   A simple configuration for having plot's ticks with the siunitx package
+* Requirements
+  - Python 3
+  - Numpy
+  - Matplotlib
+  - Matplotlib2Tikz
+  - HTCondor
+  - RNS
+  - LaTeX
 * User Guide
-Documentation will be provided.
-
+  Documentation will be provided.
 * License
-RNSA is licensed under GNU GPL v3.
+RNSA is licensed under GNU GPL v3. The full text of the license can be found in
+the LICENSE file.

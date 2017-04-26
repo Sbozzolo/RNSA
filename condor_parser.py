@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-# Condor Parser for RNS v4 and HTCondor 8.4.5
+# Condor Parser for RNS v4.0 and HTCondor 8.6.1
 # Prepare a bunch of condor.sumbit and than submit them
 
 # Author: Gabriele Bozzola (sbozzolo)
 # Email: sbozzolator@gmail.com
-# Version: 1.5
+# Version: 2.0
 # First Stable: 13/03/17
-# Last Edit: 23/03/17
+# Last Edit: 11/04/17
 
 import argparse
 import sys
@@ -24,23 +24,20 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("-f", "--eos", type = str, required = True,
                     help = "set eos, eg. eosC")
-parser.add_argument("-t", "--task", type = str, choices = ["static", "kepler", "rmass", "jmoment"],
+parser.add_argument("-t", "--task", type = str, choices = ["static", "rmass", "jmoment"],
                     required = True, help = "define which kind of sequences have to be computed")
 parser.add_argument("-o", "--out", type = str,
                     help = "set output folder")
-parser.add_argument('-N', "--nsequences", action="store", type = int,
-                    help =
+parser.add_argument('-N', "--nsequences", action="store", type = int, help =
                     "set number of sequences")
 parser.add_argument('-n', "--nmodels", action="store", type = int,
                     required = True, help = "set number of models for each sequence")
 parser.add_argument('-na', "--namodels", action="store", type = int,
-                    help = "set number of models for each sequence of rotation")
+                    help = "set number of fixed values of A (one-parameter)")
 parser.add_argument('-e1', "--energy1", action="store", type = float,
                     required = True, help = "initial central energy")
 parser.add_argument('-e2', "--energy2", action="store", type = float,
                     required = True, help = "final central energy")
-parser.add_argument("-R", "--diff", help = "enable differential rotation",
-                    action = "store_true")
 parser.add_argument('-A1', "--rotation1", action="store", type = float,
                     help = "set initial rotation parameter A")
 parser.add_argument('-A2', "--rotation2", action="store", type = float,
@@ -55,9 +52,32 @@ group2.add_argument("-m2", "--rmass2", action="store", type = float,
                     help = "final rest mass (in M_sun)")
 group2.add_argument("-j2", "--jmoment2", action="store", type = float,
                     help = "final angular momentum (in GM_sun^2/c)")
+group3 = parser.add_mutually_exclusive_group()
+group3.add_argument("-R", "--diff", help = "enable differential rotation",
+                    action = "store_true")
+group3.add_argument("-R3", "--diff3", help = "enable differential rotation with 3 parameters",
+                    action = "store_true")
+parser.add_argument('-B1', "--beta1", action="store", type = float,
+                    help = "set initial beta")
+parser.add_argument('-B2', "--beta2", action="store", type = float,
+                    help = "set final beta")
+parser.add_argument('-A1i', "--A1initial", action="store", type = float,
+                    help = "set initial A1")
+parser.add_argument('-A1f', "--A1final", action="store", type = float,
+                    help = "set final A1")
+parser.add_argument('-A2i', "--A2initial", action="store", type = float,
+                    help = "set initial A2")
+parser.add_argument('-A2f', "--A2final", action="store", type = float,
+                    help = "set final A2")
+parser.add_argument('-na1', "--namodels1", action="store", type = int,
+                    help = "set number of fixed values of A1")
+parser.add_argument('-na2', "--namodels2", action="store", type = int,
+                    help = "set number of fixed values of A2")
+parser.add_argument('-nB', "--nbmodels", action="store", type = int,
+                    help = "set number of fixed values of beta")
 parser.add_argument("-c", "--condor", help = "sumbit jobs to Condor",
                     action = "store_true")
-parser.add_argument('--version', action='version', version='%(prog)s 1.5')
+parser.add_argument('--version', action='version', version='%(prog)s 2.0')
 
 if len(sys.argv) == 1:
     parser.print_help()
@@ -76,8 +96,17 @@ m1   = args.rmass1
 m2   = args.rmass2
 j1   = args.jmoment1
 j2   = args.jmoment2
-a1   = args.rotation1
-a2   = args.rotation2
+ai   = args.rotation1
+af   = args.rotation2
+b1   = args.beta1
+b2   = args.beta2
+nb   = args.nbmodels
+na1  = args.namodels1
+na2  = args.namodels2
+a1initial  = args.A1initial
+a2initial  = args.A2initial
+a1final  = args.A1final
+a2final  = args.A2final
 
 # End parsing CLI arguments
 
@@ -100,143 +129,231 @@ else:
     now = datetime.datetime.now()
     basefolder = "{}_{}_{}_{}_{}".format(now.year, now.month, now.day, now.hour, now.minute)
 
+# Add absolute path
+basefolder = os.path.join(os.getcwd(), basefolder)
+
 # Remove old results, if they exist
 if os.path.exists(basefolder):
     shutil.rmtree(basefolder)
 os.mkdir(basefolder)
 
-# Set a to 0 if -R is not provided
-if (not args.diff):
-    na = 1
-    stepa = 0
-    a1 = 0.
+# Energy step = final energy - initial energy / number of models
+step = (e2 - e1)/(n - 1)
 
-# Compute A step
-if (na == 1):
-    stepa = 0
+# Treat separatly the static case
+if (task == "static"):
+    parentfolder = os.path.join(basefolder, "{}_Ei_{:.2e}_Ef_{:.2e}_{}/".format(eos, e1, e2, task))
+    os.mkdir(parentfolder)
+
+    # condorfile path
+    condorfilename = os.path.join(parentfolder, "condor.submit")
+    condorfile = open(condorfilename, "w")
+
+    # Write Condor file
+    print ("Executable   = " + exec_path, file = condorfile)
+    print ("Universe     = Standard", file = condorfile)
+    print ("InitialDir   = " + parentfolder, file = condorfile)
+    # If a job is running for more than 10 minutes, kill it
+    print ("periodic_remove = JobStatus == 2 && CurrentTime-EnteredCurrentStatus > 600", file = condorfile)
+    print ("", file = condorfile)
+
+    # Add Queue for each energy
+    for i in range(0, n):
+        # no verbose, relaxation
+        arguments = "-d 0"
+        # eos
+        arguments += " -f " + eos_path
+        # energy
+        energy = i*step + e1
+        arguments += " -e {:.2e}".format(energy)
+        # Static sequence means that the ratio is 1
+        arguments += " -r 1"
+        print ("Arguments   = " + arguments, file = condorfile)
+        print ("Output      = {}_{:.2e}.out".format(str(i).zfill(len(str(n))), energy),\
+               file = condorfile)
+        print ("Queue" , file = condorfile)
+        print ("", file = condorfile)
+
+    # Write a command.submit. condor.sumbit will be deleted to spare storage,
+    # but it's important to know which command had been iussed to condor, this
+    # is stored in command.submit
+    commandfilename = os.path.join(parentfolder, "command.submit")
+    commandfile = open(commandfilename, "w")
+    print ("Arguments   = " + arguments, file = commandfile)
+
+    condorfile.close()
+    commandfile.close()
+
+    if args.condor:
+            # This is not the best wat to do that, but it works
+            result = subprocess.check_output("condor_submit " + condorfilename, shell = True)
+            # Delete condor.submit
+            os.remove(condorfilename)
+            # Print to STDIO results
+            print(result.decode('utf8'))
+    else:
+        print ("condor.submit have been produced")
+
+    # It is simpler to treat this case separatly and thus exit the program
+    sys.exit(0)
+
+# Set a to 0 if -R is not provided
+if (not args.diff and not args.diff3):
+    na  = 1
+    na1 = 1
+    na2 = 1
+    nb  = 1
+    a1initial = 0.
+    a2initial = 0.
+    a1final = 0.
+    a2final = 0.
+    b1 = 0.
+    b2 = 0.
+
+if (args.diff):
+    nb  = 1
+    na1 = na
+    na2 = 1
+    a1initial = ai
+    a2initial = 0.
+    a1final = af
+    a2final = 0.
+    b1 = 1.
+    b2 = 1.
+
+if (a1final == None): a1final = a1initial
+if (a2final == None): a2final = a2initial
+if (b2 == None): b2 = b1
+
+# Compute B step
+if (nb == 1):
+    stepb = 0
 else:
-    stepa = (a2 - a1)/(na - 1)
+    stepb = (b2 - b1)/(nb - 1)
+
+# Compute A1 step
+if (na1 == 1):
+    stepa1 = 0
+else:
+    stepa1 = (a1final - a1initial)/(na1 - 1)
+
+# Compute A2 step
+if (na2 == 1):
+    stepa2 = 0
+else:
+    stepa2 = (a2final - a2initial)/(na2 - 1)
+
+# Compute mass or jmoment step
+if (N == 1):
+    stepm = 0
+    stepj = 0
+else:
+    if (task == "rmass"): stepm = (m2 - m1)/(N - 1)
+    if (task == "jmoment"): stepj = (j2 - j1)/(N - 1)
+
+# Compute energy step
+if (n == 1):
+    stepe = 0
+else:
+    stepe = (e2 - e1)/(n - 1)
 
 # condorfiles will contain all the condor.submit paths produced
 condorfiles = []
 
-# Loop over values of A
-for j in range(0, na):
+# basefolder summarizes how the script has been run
+if (task == "rmass"):
+    suffix = "_{}_Mi_{:.2}_Mf_{:.2}_ntot_{}/".format(task, m1, m2, na1*na2*nb)
+if (task == "jmoment"):
+    suffix = "_{}_Ji_{:.2}_Jf_{:.2}_ntot_{}/".format(task, j1, j2, na1*na2*nb)
 
-    # Current value of a
-    a = j*stepa + a1
+fld = "{}_A1i_{:.2}_A1f_{:.2}_A2i_{:.2}_A2f_{:.2}_Bi_{:.2}_Bf_{:.2}_Ei_{:.2e}_Ef_{:.2e}".format(eos, a1initial, a1final, a2initial, a2final, b1, b2, e1, e2)  + suffix
+basefolder = os.path.join(basefolder, fld)
+os.mkdir(basefolder)
 
-    # There's no need to compute more than 1 models if the task id static or kepler
-    if (task == "static" or task == "kepler"): N = 1
+# Loop over values of A1
+for q in range(0, na1):
+    # Current value of A1
+    a1 = q*stepa1 + a1initial
 
-    # parentfolder is the folder with fixed A
-    # parantfodlder is customized depending on the task, so it can be read in other scripts
-    if (task == "rmass"):
-        parentfolder = os.path.join(basefolder,
-                                  "{}_n{}_A_{:.2}_Ei{:.1}_Ef{:.1}_{}_Mi{}_Mf{}/".format(eos, n, a, e1, e2, task, m1, m2))
-    if (task == "jmoment"):
-        parentfolder = os.path.join(basefolder, \
-                                    "{}_n{}_A_{:.2}_Ei{:.1}_Ef{:.1}_{}_Ji{}_Jf{}/".format(eos, n, a, e1, e2, task, j1, j2))
-    if (task == "static"):
-        parentfolder = os.path.join(basefolder, \
-                                    "{}_n{}_Ei{:.1}_Ef{:.1}_{}/".format(eos, n, e1, e2, task))
-    if (task == "kepler"):
-        if (args.diff):
-            parentfolder = os.path.join(basefolder, \
-                                       "{}_n{}_A_{:.2}_Ei{:.1}_Ef{:.1}_{}/".format(eos, n, a, e1, e2, task))
-        else:
-            parentfolder = os.path.join(basefolder, \
-                                    "{}_n{}_Ei{:.1}_Ef{:.1}_{}/".format(eos, n, e1, e2, task))
+    fld = "{}_A1_{:.3}_A2i_{:.3}_A2f_{:.3}_Bi_{:.3}_Bf_{:.3}_Ei_{:.3e}_Ef_{:.3e}".format(eos, a1, a2initial, a2final, b1, b2, e1, e2) + suffix
+    a1_folder = os.path.join(basefolder, fld)
 
-    os.mkdir(parentfolder)
+    os.mkdir(a1_folder)
+    # Loop over values of A2
+    for l in range(0, na2):
+        # Current value of A1
+        a2 = l*stepa2 + a2initial
+        fld = "{}_A1_{:.3}_A2_{:.3}_Bi_{:.3}_Bf_{:.3}_Ei_{:.3e}_Ef_{:.3e}".format(eos, a1, a2, b1, b2, e1, e2) + suffix
+        a2_folder = os.path.join(basefolder, a1_folder, fld)
+        os.mkdir(a2_folder)
+        # Compute model with various value of beta
+        for u in range(0,nb):
+            # Current value of b
+            b = u*stepb + b1
+            fld = "{}_A1_{:.3}_A2_{:.3}_B_{:.3}_Ei_{:.3e}_Ef_{:.3e}".format(eos, a1, a2, b, e1, e2) + suffix
+            b_folder = os.path.join(basefolder, a1_folder, a2_folder, fld)
+            os.mkdir(b_folder)
+            # loop over values of mass, or jmoment
+            for k in range(0, N):
+                if (task == "rmass"):
+                    # Current value of mass
+                    mass = k*stepm + m1
+                    fld = "{}_A1_{:.3}_A2_{:.3}_B_{:.3}_Ei_{:.3e}_Ef_{:.3e}_M_{:.3}".format(eos, a1, a2, b, e1, e2, mass)
+                    data_folder =  os.path.join(basefolder, a1_folder, a2_folder, b_folder, fld)
 
-    # loop over values of mass, or jmoment
-    for k in range(0, N):
+                if (task == "jmoment"):
+                    # Current mass
+                    jmoment = k*stepj + j1
+                    fld = "{}_A1_{:.3}_A2_{:.3}_B_{:.3}_Ei_{:.3e}_Ef_{:.3e}_J_{:.3}".format(eos, a1, a2, b, e1, e2, jmoment)
+                    data_folder =  os.path.join(basefolder, a1_folder, a2_folder, b_folder, fld)
 
-        if (task == "rmass"):
-            # Mass steps
-            if (N == 1):
-                # if N = 1 there's no need to step
-                stepm = 0
-            else:
-                stepm = (m2 - m1)/(N - 1)
+                # Folder where are stored results
+                os.mkdir(data_folder)
 
-        if (task == "jmoment"):
-            # Moment steps
-            if (N == 1):
-                # if N = 1 there's no need to step
-                stepj = 0
-            else:
-                stepj = (j2 - j1)/(N - 1)
+                # Produce condor.submit
+                # condorfile path
+                condorfilename = os.path.join(data_folder, "condor.submit")
+                condorfiles.append(condorfilename)
+                condorfile = open(condorfilename, "w")
 
-        # Energy step
-        step = (e2 - e1)/(n - 1)
+                # Write Condor file
+                print ("Executable   = " + exec_path, file = condorfile)
+                print ("Universe     = Standard", file = condorfile)
+                print ("InitialDir   = " + data_folder, file = condorfile)
+                # If a job is running for more than 10 minutes, kill it
+                print ("periodic_remove = JobStatus == 2 && CurrentTime-EnteredCurrentStatus > 600", file = condorfile)
+                # print ("Notification = Complete", file = condorfile)
+                # print ("notify_user  = spammozzola@gmail.com", file = condorfile)
+                print ("", file = condorfile)
 
-        # folder is the name of the folder which will contain actual data
+                for i in range(0, n):
+                    # no verbose, relaxation
+                    arguments = "-c 0.5 -d 0"
+                    # eos
+                    arguments += " -f " + eos_path
+                    if (args.diff):  arguments += " -R diff -A {:.5}".format(a1)
+                    if (args.diff3):  arguments += " -R diff -A {:.5} -D {:.5} -b {:.5}".format(a1, a2*a2, b)
+                    # target
+                    if (task == "rmass"):    arguments += " -s 1 -n 1 -p {:.5f}".format(mass)
+                    if (task == "jmoment"):  arguments += " -s 2 -n 1 -p {:.5f}".format(jmoment)
+                    # energy
+                    energy = i*step + float(e1)
+                    arguments += " -e {:.5e}".format(energy)
+                    print ("Arguments   = " + arguments, file = condorfile)
+                    print ("Output      = {}_{:.3e}.out".format(str(i).zfill(len(str(n))), energy),\
+                           file = condorfile)
+                    print ("Queue" , file = condorfile)
+                    print ("", file = condorfile)
 
-        if (task == "rmass"):
-            # Current mass
-            mass = k*stepm + m1
-            folder = "{}_n{}_A_{:.2}_Ei{:.1}_Ef{:.1}_{}_M{:.2f}".format(eos, n, a, e1, e2, task, mass)
+                # Write a command.submit. condor.sumbit will be deleted to spare storage,
+                # but it's important to know which command had been iussed to condor, this
+                # is stored in command.submit
+                commandfilename = os.path.join(data_folder, "command.submit")
+                commandfile = open(commandfilename, "w")
+                print ("Arguments   = " + arguments, file = commandfile)
 
-        if (task == "jmoment"):
-            # Current mass
-            jmoment = k*stepj + j1
-            folder = "{}_n{}_A_{:.2}_Ei{:.1}_Ef{:.1}_{}_J{:.2f}".format(eos, n, a, e1, e2, task, jmoment)
-
-        if (task == "static"):
-            folder = "{}_n{}_A_{:.2}_Ei{:.1}_Ef{:.1}_{}".format(eos, n, a, e1, e2, task)
-
-        if (task == "kepler"):
-            folder = "{}_n{}_Ei{:.1}_Ef{:.1}_{}".format(eos, n, a, e1, e2, task)
-            if (args.diff): folder = "/{}_n{}_A_{:.2}_Ei{:.1}_Ef{:.1}_{}/".format(eos, n, a, e1, e2, task)
-
-        os.mkdir(os.path.join(parentfolder, folder))
-
-        # condorfile path
-        condorfilename = os.path.join(parentfolder, folder, "condor.submit")
-        condorfiles.append(condorfilename)
-        condorfile = open(condorfilename, "w")
-
-        # Write Condor file
-        print ("Executable   = " + exec_path, file = condorfile)
-        print ("Universe     = Standard", file = condorfile)
-        print ("InitialDir   = " + os.path.join(parentfolder, folder), file = condorfile)
-        # If a job is running for more than 10 minutes, kill it
-        print ("periodic_remove = JobStatus == 2 && CurrentTime-EnteredCurrentStatus > 300", file = condorfile)
-        # print ("Notification = Complete", file = condorfile)
-        # print ("notify_user  = spammozzola@gmail.com", file = condorfile)
-        print ("", file = condorfile)
-
-        for i in range(0, n):
-            # no verbose, relaxation
-            arguments = "-c 0.5 -d 0"
-            # eos
-            arguments += " -f " + eos_path
-            if (args.diff):  arguments += " -R diff -A {:.2}".format(a)
-            # target
-            if (task == "rmass"):    arguments += " -s 1 -n 1 -p {:.2f}".format(mass)
-            if (task == "jmoment"):  arguments += " -s 2 -n 1 -p {:.2f}".format(jmoment)
-            if (task == "kepler"):   arguments += " -s 3 -n 1"
-            if (task == "static"):   arguments += " -r 1"
-            # energy
-            energy = i*step + float(e1)
-            arguments += " -e {:.2e}".format(energy)
-            print ("Arguments   = " + arguments, file = condorfile)
-            print ("Output      = {}_{:.2e}.out".format(str(i).zfill(len(str(n))), energy),\
-                   file = condorfile)
-            print ("Queue" , file = condorfile)
-            print ("", file = condorfile)
-
-        # Write a command.submit. condor.sumbit will be deleted to spare storage,
-        # but it's important to know which command had been iussed to condor, this
-        # is stored in command.submit
-        commandfilename = os.path.join(parentfolder, folder, "command.submit")
-        commandfile = open(commandfilename, "w")
-        print ("Arguments   = " + arguments, file = commandfile)
-
-        condorfile.close()
-        commandfile.close()
+                condorfile.close()
+                commandfile.close()
 
 # It can take a while... 3 hours for 100k jobs
 if args.condor:

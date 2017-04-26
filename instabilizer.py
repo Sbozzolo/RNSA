@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
 
 # Instabilizer for RNS models
+# Computes models on the instability line
 
 # Author: Gabriele Bozzola (sbozzolo)
 # Email: sbozzolator@gmail.com
-# Version: 1.0
+# Version: 2.1
 # First Stable: 18/03/17
-# Last Edit: 27/03/17
+# Last Edit: 26/04/17
 
 import argparse
 import sys
 import os
 import shutil
 import subprocess
-from subprocess import Popen, PIPE
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--file", type = str,
+parser.add_argument("-f", "--file", type = str, required = True,
                     help = "basefiles, eg. 2017_3_13_21_39")
-parser.add_argument("-e", "--eos", help = "set eos, eg. eosC", type = str)
-parser.add_argument("-R", "--diff", help = "enable differential rotation", action = "store_true")
-parser.add_argument('--version', action='version', version='%(prog)s 1.0')
+parser.add_argument("-e", "--eos", help = "set eos, eg. eosC",
+                    required = True, type = str)
+parser.add_argument("-n", "--name", help = "name of the turning file (if not energyvsgmass)",
+                    type = str)
+parser.add_argument('--version', action='version', version='%(prog)s 2.1')
 
 if (len(sys.argv) == 1):
     parser.print_help()
@@ -30,7 +32,10 @@ args = parser.parse_args()
 
 # Parse arguments
 eos = args.eos
+
+# Should be set!
 eos_path  = "/home/sbozzolo/master_thesis/rns4.0/EOS/" + eos
+exec_path = "/home/sbozzolo/master_thesis/rns4.0/rns"
 
 try:
     my_file = open(eos_path)
@@ -38,49 +43,86 @@ except IOError:
     print("EOS NOT FOUND!")
     sys.exit(2)
 
+if (args.name == None):
+    name = "energyvsgmass"
+else:
+    name = args.name
 
-homedir = "/home/sbozzolo/master_thesis/rns4.0"
-basefile =  os.path.join(homedir, args.file, "energyvsgmass.turning")
-# The file is formatted in this way
-# energy gmass value_of_A J/M
-# J/M depending if the turning points is from a J or M fixed sequence
-# Stripping this data is possible to compute the model with RNS
+# Working dir
+homedir = os.getcwd()
 
-with open(basefile) as f:
-    # Clean up previous results, which begin with the letter A
-    files = [f for f in os.listdir(os.path.join(homedir, args.file)) if f.startswith("A")
-             and not os.path.isdir(os.path.join(homedir, args.file, f))]
-    for ff in files: os.remove(os.path.join(homedir, args.file, ff))
-    # Read file line by line
-    for line in f:
-        run = line.split(' ')
-        # RNS -s 1 means constant M, -s 2 means constant J
-        if (run[2] == "M"): task = "1"
-        if (run[2] == "J"): task = "2"
-        # Prepare command
-        cmd = "./rns -d 0 -c 0.5  -f " + eos_path + " -n 1 -s " + task + " -e " + run[0] + "e15 -p " + run[3]
-        # Add differential rotation in case
-        if (args.diff): cmd += " -R diff -A " + run[5][0:-1]
-        print (cmd)
+# Now basedir is the folder with the recap in the name
+newbasedirs  = [f for f in os.listdir(os.path.join(homedir, args.file))
+                if os.path.isdir(os.path.join(homedir, args.file, f))]
 
-        # Save results
-        result = subprocess.check_output(cmd, shell = True)
-        result = result.decode("utf-8")
+# Monitor the progress counting how many directories are left
+j = 0
 
-        print(result)
-        splitted = result.split()
+for d in newbasedirs:
 
-        # If there is no result skip writing
-        if(len(splitted) > 3):
+    # Monitor the progress
+    j +=1
+    # i counts the sequences
+    i = 1
 
-            # Write result on a generic file A_value
-            with open(os.path.join(homedir, args.file, "A" + run[5][0:-1] + run[2]), 'a') as o:
-                print(result, file = o)
+    basefile =  os.path.join(homedir, args.file, d, "{}.turning".format(name))
+    # Number of models
+    tot = sum(1 for line in open(basefile))
+    # The file is formatted in this way
+    # energy gmass J/M value_of_J_or_M "A1" value_of_A_1 "A2" value_of_A_2 "B" value_of_B
+    # J/M depending if the turning points is from a J or M fixed sequence
+    # Stripping this data is possible to compute the model with RNS
 
-            # Write rmass on the same file with name appended _rmass
-            with open(os.path.join(homedir, args.file, "A" + run[5][0:-1] + run[2] + "_rmass"), 'a') as o:
-                print(splitted[2], file = o)
+    with open(basefile) as f:
+        # Clean up previous results, which begin with the letter A
+        files = [f for f in os.listdir(os.path.join(homedir, args.file)) if f.startswith("A")
+                 and not os.path.isdir(os.path.join(homedir, args.file, f))]
+        for ff in files: os.remove(os.path.join(homedir, args.file, ff))
 
-            # Write jmoment on the same file with name appended _jmoment
-            with open(os.path.join(homedir, args.file, "A" + run[5][0:-1] + run[2] + "_jmoment"), 'a') as o:
-                print(splitted[4], file = o)
+        # Read file line by line
+        for line in f:
+            run = line.strip().split(' ')
+            # RNS -s 1 means constant M, -s 2 means constant J
+            if (run[2] == "M"): task = "1"
+            if (run[2] == "J"): task = "2"
+            # Prepare command
+            if (run[2] == "STATIC"):
+                cmd = exec_path + " -c 0.5 -d 0 -f " + eos_path + " -n 1 -r 1 -e " + run[0] + "e15"
+            else:
+                cmd = exec_path + " -c 0.5 -d 0 -f " + eos_path + " -n 1 -s " + task + " -e " + run[0] + "e15 -p " + run[3]
+                # Add differential rotation one parameter in case
+                if (not run[5] == "0.0"): cmd += " -R diff -A {}".format(run[5])
+                # Add differential rotation three parameters in case
+                if (not run[7] == "0.0"): cmd += " -D {} -b {}".format(run[7], run[9])
+            print (cmd)
+
+            # Save results the try statement is required in case RNS's output value is not 0
+            try:
+                result = subprocess.check_output(cmd, shell = True)
+                result = result.decode("utf-8")
+            except Exception:
+                pass
+
+            # Progess
+            print("Models: [{}/{}], Sequences [{}/{}]".format(i, tot, j, len(newbasedirs)))
+            print(result)
+            i += 1
+            splitted = result.split()
+
+            # If there is no result skip writing
+            if(len(splitted) > 3):
+
+                if (run[2] == "STATIC"):
+                    A1value = 0.0
+                    A2value = 0.0
+                    Bvalue  = 0.0
+                else:
+                    A1value = run[5]
+                    A2value = run[7]
+                    Bvalue  = run[9]
+
+                prefix_file = "inst_{}_A1_{}_A2_{}_B_{}".format(run[2], A1value, A2value, Bvalue)
+
+                # Write result on a generic file A_value
+                with open(os.path.join(homedir, args.file, d, prefix_file), 'a') as o:
+                    print(result, file = o)
