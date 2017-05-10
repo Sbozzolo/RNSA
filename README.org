@@ -27,14 +27,27 @@ Moreover there is a set of utilities:
    To delete every Output_star folder to save storage
 ** matplotlibrc
    A simple configuration for having plot's ticks with the siunitx package
+** eps_rho_poly.py
+   Interactive script to trasform central rest mass density in central energy
+   for a polytrope (and reverse).
+** dimensionless_cgs.py
+   Interactive script to CU units in CGS (and reverse).
+** simsync.sh
+   Copy the output of a simulation from the remote location to the local one,
+   defined in the remote_config file
+** watchsim.sh
+   Print the current (and continue on updating) log for a remote simulation with
+   parameters defined in remote_config
 * Requirements
-  - Python 3
-  - Numpy
-  - Matplotlib
-  - Matplotlib2Tikz
-  - HTCondor
-  - RNS
-  - LaTeX
+ - Python >= 3.4.0
+ - NumPy >= 1.12
+ - matplotlib >= 2.0.0
+ - matplotlib2tikz >= 0.6.2
+ - LaTeX >= 3.14159265
+ - gawk >= 4.1.1
+ - RNS >= 4.0
+ - HTCondor >= 8.4.0
+ - rsync >= 3.1.2
 * User Guide
   Documentation will be provided.
 * License

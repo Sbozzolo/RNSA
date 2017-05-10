@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/bin/sh
 
 #/ Usage: eosify <eos> (eg eosC)
 #/ Produce a RNS 4.0 compatible eos from a RNS 1.1c EOS table
-#/ Needs to be tweked inside for paths
+#/ Needs to be tweaked inside for paths
 usage() {
     grep '^#/' "$0" | cut -c4-
     exit 0

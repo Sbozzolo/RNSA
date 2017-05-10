@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #/ Usage: stardestroyer
 #/ Delete every occurence of the folder Output_star to save storage

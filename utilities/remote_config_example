@@ -1,0 +1,7 @@
+#!/bin/bash
+
+user=""
+remote=""
+
+local_simulation_folder=""
+remote_simulation_folder=""
