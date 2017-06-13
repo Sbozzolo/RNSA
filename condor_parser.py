@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-# Condor Parser for RNS v4.0 and HTCondor 8.6.1
+# Condor Parser for RNS v4 and HTCondor 8.6.1
 # Prepare a bunch of condor.sumbit and than submit them
 
 # Author: Gabriele Bozzola (sbozzolo)
 # Email: sbozzolator@gmail.com
-# Version: 2.0
+# Version: 2.1
 # First Stable: 13/03/17
-# Last Edit: 11/04/17
+# Last Edit: 12/06/17
 
 import argparse
 import sys
@@ -22,7 +22,12 @@ import datetime
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("-f", "--eos", type = str, required = True,
+group0 = parser.add_mutually_exclusive_group()
+group0.add_argument("-p", "--poly", action="store_true",
+                    help = "Use polytropic EOS")
+parser.add_argument("-q", "--index", action="store", type = float,
+                    help = "Polytropic index")
+group0.add_argument("-f", "--eos", type = str,
                     help = "set eos, eg. eosC")
 parser.add_argument("-t", "--task", type = str, choices = ["static", "rmass", "jmoment"],
                     required = True, help = "define which kind of sequences have to be computed")
@@ -85,39 +90,48 @@ if len(sys.argv) == 1:
 
 args = parser.parse_args()
 
-task = args.task
-eos  = args.eos
-n    = args.nmodels
-na   = args.namodels
-N    = args.nsequences
-e1   = args.energy1
-e2   = args.energy2
-m1   = args.rmass1
-m2   = args.rmass2
-j1   = args.jmoment1
-j2   = args.jmoment2
-ai   = args.rotation1
-af   = args.rotation2
-b1   = args.beta1
-b2   = args.beta2
-nb   = args.nbmodels
-na1  = args.namodels1
-na2  = args.namodels2
+poly  = args.poly
+index = args.index
+task  = args.task
+eos   = args.eos
+n     = args.nmodels
+na    = args.namodels
+N     = args.nsequences
+e1    = args.energy1
+e2    = args.energy2
+m1    = args.rmass1
+m2    = args.rmass2
+j1    = args.jmoment1
+j2    = args.jmoment2
+ai    = args.rotation1
+af    = args.rotation2
+b1    = args.beta1
+b2    = args.beta2
+nb    = args.nbmodels
+na1   = args.namodels1
+na2   = args.namodels2
 a1initial  = args.A1initial
 a2initial  = args.A2initial
 a1final  = args.A1final
 a2final  = args.A2final
 
+if (not eos == None):
+    tab_eos = True
+else:
+    tab_eos = False # Polytropic
+    eos = "p" + str(index)
+
 # End parsing CLI arguments
 
-exec_path = "/home/sbozzolo/master_thesis/rns4.0/rns"
+exec_path = "/home/sbozzolo/master_thesis/rns_poly/rns"
 eos_path  = "/home/sbozzolo/master_thesis/rns4.0/EOS/" + eos
 
-try:
-    my_file = open(eos_path)
-except IOError:
-    print("EOS NOT FOUND!")
-    sys.exit(2)
+if (tab_eos):
+   try:
+       my_file = open(eos_path)
+   except IOError:
+       print("EOS NOT FOUND!")
+       sys.exit(2)
 
 # Define a new folder based on time if -o is not provided
 
@@ -154,7 +168,9 @@ if (task == "static"):
     print ("Universe     = Standard", file = condorfile)
     print ("InitialDir   = " + parentfolder, file = condorfile)
     # If a job is running for more than 10 minutes, kill it
-    print ("periodic_remove = JobStatus == 2 && CurrentTime-EnteredCurrentStatus > 600", file = condorfile)
+    print ("periodic_remove = JobStatus == 2 && CurrentTime-EnteredCurrentStatus > 300", file = condorfile)
+    # print ("Notification = Complete", file = condorfile)
+    # print ("notify_user  = spammozzola@gmail.com", file = condorfile)
     print ("", file = condorfile)
 
     # Add Queue for each energy
@@ -196,6 +212,7 @@ if (task == "static"):
 
     # It is simpler to treat this case separatly and thus exit the program
     sys.exit(0)
+
 
 # Set a to 0 if -R is not provided
 if (not args.diff and not args.diff3):
@@ -330,7 +347,10 @@ for q in range(0, na1):
                     # no verbose, relaxation
                     arguments = "-c 0.5 -d 0"
                     # eos
-                    arguments += " -f " + eos_path
+                    if (tab_eos):
+                        arguments += " -f " + eos_path
+                    else: # Polytropic
+                        arguments += " -q poly " + " -N " + str(index)
                     if (args.diff):  arguments += " -R diff -A {:.5}".format(a1)
                     if (args.diff3):  arguments += " -R diff -A {:.5} -D {:.5} -b {:.5}".format(a1, a2*a2, b)
                     # target

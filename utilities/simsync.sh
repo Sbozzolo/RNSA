@@ -20,7 +20,6 @@ mkdir -p "$local_simulation_folder""/""$1"
 
 watched_folder="$remote_simulation_folder""/$1"
 
-
 is_ok=$(ssh "$user""@""$remote" "if [ -d '$watched_folder' ]; then echo '1'; fi;")
 
 if [ -z "$is_ok" ]; then

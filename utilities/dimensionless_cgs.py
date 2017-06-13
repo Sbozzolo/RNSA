@@ -31,10 +31,11 @@ if user_input == '1':
     print("What do you want to convert?")
     print("(1): Energy densities")
     print("(2): Lengths")
+    print("(3): Times")
     while True:
-        user_input2 = input('(1) or (2)? ')
+        user_input2 = input('(1) or (2) or (3)? ')
 
-        if user_input2 in ['1', '2']:
+        if user_input2 in ['1', '2', '3']:
             break
         else:
             print('That is not a valid option!')
@@ -42,24 +43,31 @@ if user_input == '1':
     if user_input2 == '1':
         energy = float(input('Value of energy (in dimensionless units)? '))
         result = np.power(c, 6)/(np.power(G, 3)*np.power(M_sun, 2))*energy
-        print("Energy in dimensionless units: ", energy)
-        print("Energy in g/cm^3: ", result)
+        print("Energy in dimensionless units: {:.3E}".format(energy))
+        print("Energy in g/cm^3: {:.3E}".format(result))
 
     elif user_input2 == '2':
         length = float(input('Value of length (in dimensionless units)? '))
         result = G*M_sun/(c*c)*length/100000
-        print("Leght in dimensionless units:", length)
+        print("Length in dimensionless units:", length)
         print("Length in km:", result)
+
+    elif user_input2 == '3':
+        time = float(input('Value of time (in dimensionless units)? '))
+        result = G*M_sun/(c*c*c)*time*1000
+        print("Time in dimensionless units:", time)
+        print("Time in ms:", result)
 
 
 elif user_input == '2':
     print("What do you want to convert?")
     print("(1): Energy densities")
     print("(2): Lengths")
+    print("(3): Times")
     while True:
-        user_input2 = input('(1) or (2)? ')
+        user_input2 = input('(1) or (2) or (3)? ')
 
-        if user_input2 in ['1', '2']:
+        if user_input2 in ['1', '2', '3']:
             break
         else:
             print('That is not a valid option!')
@@ -73,5 +81,11 @@ elif user_input == '2':
     elif user_input2 == '2':
         length = float(input('Value of length (in km)? '))
         result = np.power(G*M_sun/(c*c)/100000, -1)*length
-        print("Leght in dimensionless units:", result)
+        print("Length in dimensionless units:", result)
         print("Length in km:", length)
+
+    elif user_input2 == '3':
+        time = float(input('Value of time (in ms)? '))
+        result = np.power(G*M_sun/(c*c*c), -1)*time/1000
+        print("Time in dimensionless units:", result)
+        print("Time in ms:", time)
