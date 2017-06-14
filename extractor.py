@@ -1,17 +1,60 @@
 #!/usr/bin/env python3
 
-# Extract, to extract data from models of RNS v4.0
+# Extract, to extract data from models of RNS v4
 
 # Author: Gabriele Bozzola (sbozzolo)
 # Email: sbozzolator@gmail.com
-# Version: 2.0
+# Version: 2.5
 # First Stable: 13/03/17
-# Last Edit: 10/04/17
+# Last Edit: 14/06/17
 
 import argparse
 import sys
 import os
 import shutil
+import re
+import numpy as np
+
+
+#constants, in SI
+G     = 6.673e-11   # m^3/(kg s^2)
+c     = 299792458   # m/s
+M_sun = 1.98892e30  # kg
+# Conversion factors
+CU_to_km   = M_sun*G/(1000*c*c)                  # km
+CU_to_s    = (M_sun*G/(c*c*c))                   # s
+CU_to_dens = c*c*c*c*c*c / (G*G*G * M_sun*M_sun) # kg/m^3
+CU_to_dens_CGS = CU_to_dens *1000/100**3         # g/cm^3
+
+def energy_poly_to_cgs(energy, index, kappa, poly):
+    if (not poly):
+        return float(energy)*1e-15
+    else:
+        return float(energy)/np.power(kappa, index)*CU_to_dens_CGS*1e-15
+
+def mass_poly_to_dimensionless(mass, index, kappa, poly):
+    if (not poly):
+        return float(mass)
+    else:
+        return float(mass)*np.power(kappa, index/2)
+
+def jmoment_poly_to_dimensionless(jmoment, index, kappa, poly):
+    if (not poly):
+        return float(jmoment)
+    else:
+        return float(jmoment)*np.power(kappa, index)
+
+def omega_poly_to_cgs(omega, index, kappa, poly):
+    if (not poly):
+        return float(omega)
+    else:
+        return float(omega)/np.power(kappa, index/2)*CU_to_s
+
+def radius_poly_to_si(radius, index, kappa, poly):
+    if (not poly):
+        return float(radius)
+    else:
+        return float(radius)*np.power(kappa, index/2)*CU_to_km
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--files", type = str, nargs = '+',
@@ -42,6 +85,8 @@ parser.add_argument("-R", "--radius", help = "equatorial radius",
                     action = "store_true")
 parser.add_argument("-r", "--rratio", help = "polar equatorial ratio",
                     action = "store_true")
+parser.add_argument("-k", "--kappa", help = "polytropic kappa",
+                    action = "store", type = float)
 
 parser.add_argument('--version', action='version', version='%(prog)s 2.0')
 
@@ -56,8 +101,7 @@ homedir = os.getcwd()
 # It can happen that there are spurious results
 def is_not_ok(file):
     """Check if file contains the string 'Maximum'
-    or 'sqrt'. Those are bad words meaning that RNS
-    has not produced a valuable output."""
+    or 'sqrt"""
     with open(file, 'r') as f:
         line = f.readline()
         if line.find("Maximum") == 0:
@@ -96,7 +140,16 @@ for fff in args.files:
     newbasedir  = [f for f in os.listdir(basedir) if os.path.isdir(os.path.join(basedir,f))][0]
     basedir = os.path.join(basedir, newbasedir)
 
-    # Static has to be treated differently
+    if ((re.match('p[0-9]\.[0-9]', newbasedir)) is not None):
+        poly = True
+        index = float(newbasedir[1:3])
+        if (not args.clean):
+            print("Found Polytrope with index", index)
+            if (args.kappa == None):
+                kappa = float(input('Value of K? '))
+    else:
+        poly = False
+
     if ("static" in basedir):
         static = True
     else:
@@ -114,23 +167,19 @@ for fff in args.files:
         # If it is not static the structure is complex
         else:
             # folders with A1 fixed
-            foldersA1  = [f for f in os.listdir(basedir)
-                          if os.path.isdir(os.path.join(basedir, f))]
+            foldersA1  = [f for f in os.listdir(basedir) if os.path.isdir(os.path.join(basedir, f))]
             foldersA1.sort()
             for fA1 in foldersA1:
                 # folders with A2 fixed
-                foldersA2  = [f for f in os.listdir(os.path.join(basedir, fA1))
-                              if os.path.isdir(os.path.join(basedir, fA1, f))]
+                foldersA2  = [f for f in os.listdir(os.path.join(basedir, fA1)) if os.path.isdir(os.path.join(basedir, fA1, f))]
                 foldersA2.sort()
                 for fA2 in foldersA2:
                     # folders with beta fixed
-                    foldersB  = [f for f in os.listdir(os.path.join(basedir, fA1, fA2))
-                                 if os.path.isdir(os.path.join(basedir, fA1, fA2, f))]
+                    foldersB  = [f for f in os.listdir(os.path.join(basedir, fA1, fA2)) if os.path.isdir(os.path.join(basedir, fA1, fA2, f))]
                     foldersB.sort()
                     for fB in foldersB:
                         # folders with different values of jmoment or rmass
-                        folders  = [f for f in os.listdir(os.path.join(basedir, fA1, fA2, fB))
-                                    if os.path.isdir(os.path.join(basedir, fA1, fA2, fB, f))]
+                        folders  = [f for f in os.listdir(os.path.join(basedir, fA1, fA2, fB))  if os.path.isdir(os.path.join(basedir, fA1, fA2, fB, f))]
                         folders.sort()
                         # inside these folders there are the actual data
                         # Iterate over folders
@@ -185,20 +234,25 @@ for fff in args.files:
             for f in files:
                     with open(os.path.join(basedir, f), 'r') as ff:
                         data = ff.readline().strip().split()
-                        # This is the structure of the .out files:
-                        #  e_c e_max Mass Mass_0 J T/W Omega_c Omega_max Omega_e Omega_K R_e r_e grv2 grv3 r_ratio_40pcrho_c r_ratio
-
-                        # I prefer energy with values around 1 and not 1e15
-                        if (args.energy):    print(float(data[0])*1.e-15,  file = energyfile)
-                        if (args.maxenergy): print(float(data[1])*1.e-15,  file = maxenergyfile)
-                        if (args.gmass):     print(data[2],  file = gmassfile)
-                        if (args.rmass):     print(data[3],  file = rmassfile)
-                        if (args.jmoment):   print(data[4],  file = jmomentfile)
+                        if (args.energy):    print(energy_poly_to_cgs(data[0], index, kappa, poly),
+                                                   file = energyfile)
+                        if (args.maxenergy): print(energy_poly_to_cgs(data[1], index, kappa, poly),
+                                                   file = maxenergyfile)
+                        if (args.gmass):     print(mass_poly_to_dimensionless(data[2], index, kappa, poly),
+                                                   file = gmassfile)
+                        if (args.rmass):     print(mass_poly_to_dimensionless(data[3], index, kappa, poly),
+                                                   file = rmassfile)
+                        if (args.jmoment):   print(jmoment_poly_to_dimensionless(data[4], index, kappa, poly),
+                                                   file = jmomentfile)
                         if (args.twratio):   print(data[5],  file = twratiofile)
-                        if (args.comega):    print(data[6],  file = comegafile)
-                        if (args.maxomega):  print(data[7],  file = maxomegafile)
-                        if (args.eomega):    print(data[8],  file = eomegafile)
-                        if (args.radius):    print(data[10], file = radiusfile)
+                        if (args.comega):    print(omega_poly_to_cgs(data[6], index, kappa, poly),
+                                                   file = comegafile)
+                        if (args.maxomega):  print(omega_poly_to_cgs(data[7], index, kappa, poly),
+                                                   file = maxomegafile)
+                        if (args.eomega):    print(omega_poly_to_cgs(data[8], index, kappa, poly),
+                                                   file = eomegafile)
+                        if (args.radius):    print(radius_poly_to_si(data[10], index, kappa, poly),
+                                                   file = radiusfile)
                         if (args.rratio):    print(data[15], file = rratiofile)
             if (args.energy):
                 energyfile.close()
@@ -247,24 +301,20 @@ for fff in args.files:
         # If it is not static the structure is complex
         else:
             # folders with A1 fixed
-            foldersA1  = [f for f in os.listdir(basedir)
-                          if os.path.isdir(os.path.join(basedir, f))]
+            foldersA1  = [f for f in os.listdir(basedir) if os.path.isdir(os.path.join(basedir, f))]
             foldersA1.sort()
             for fA1 in foldersA1:
                 # folders with A2 fixed
-                foldersA2  = [f for f in os.listdir(os.path.join(basedir, fA1))
-                              if os.path.isdir(os.path.join(basedir, fA1, f))]
+                foldersA2  = [f for f in os.listdir(os.path.join(basedir, fA1))  if os.path.isdir(os.path.join(basedir, fA1, f))]
                 foldersA2.sort()
                 for fA2 in foldersA2:
                     # folders with beta fixed
-                    foldersB  = [f for f in os.listdir(os.path.join(basedir, fA1, fA2))
-                                 if os.path.isdir(os.path.join(basedir, fA1, fA2, f))]
+                    foldersB  = [f for f in os.listdir(os.path.join(basedir, fA1, fA2)) if os.path.isdir(os.path.join(basedir, fA1, fA2, f))]
                     foldersB.sort()
                     for fB in foldersB:
                         # folders with different values of jmoment or rmass
                         path_B = os.path.join(basedir, fA1, fA2, fB)
-                        folders  = [f for f in os.listdir(path_B)
-                                    if os.path.isdir(os.path.join(basedir, fA1, fA2, fB, f))]
+                        folders  = [f for f in os.listdir(path_B)  if os.path.isdir(os.path.join(basedir, fA1, fA2, fB, f))]
                         folders.sort()
                         # inside these folders there are the actual data
                         # Iterate over folders
@@ -367,9 +417,10 @@ for fff in args.files:
                                 rratiofile.close()
                                 print("Written ", rratiopath)
                                 i += 1
-
-# Print the stats (for fun)
 if (args.clean):
     print("Done! Removed {} files".format(i))
 else:
     print("Done! Written {} files".format(i))
+
+
+#  e_c e_max Mass Mass_0 J T/W Omega_c Omega_max Omega_e Omega_K R_e r_e grv2 grv3 r_ratio_40pcrho_c r_ratio

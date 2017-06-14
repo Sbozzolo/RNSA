@@ -9,6 +9,11 @@ usage() {
 }
 expr "$*" : ".*--help" > /dev/null && usage
 
+if [ "$#" -ne 1 ]; then
+    echo "Illegal number of arugments. Try --help"
+    exit 1
+fi
+
 # Where the RNS 1.1c EOS are stored
 eos_folder=/home/sbozzolo/master_thesis/rns4.0/eos_old/
 
