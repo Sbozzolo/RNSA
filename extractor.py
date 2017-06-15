@@ -183,7 +183,7 @@ for fff in args.files:
                         folders  = [f for f in os.listdir(os.path.join(basedir, fA1, fA2, fB))  if os.path.isdir(os.path.join(basedir, fA1, fA2, fB, f))]
                         folders.sort()
                         # inside these folders there are the actual data
-              n          # Iterate over folders
+                        # Iterate over folders
                         for d in folders:
                             # Iterate over data files
                             for df in datafiles:
