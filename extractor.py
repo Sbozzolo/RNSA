@@ -6,7 +6,7 @@
 # Email: sbozzolator@gmail.com
 # Version: 2.5
 # First Stable: 13/03/17
-# Last Edit: 14/06/17
+# Last Edit: 15/06/17
 
 import argparse
 import sys
@@ -14,7 +14,6 @@ import os
 import shutil
 import re
 import numpy as np
-
 
 #constants, in SI
 G     = 6.673e-11   # m^3/(kg s^2)
@@ -147,6 +146,8 @@ for fff in args.files:
             print("Found Polytrope with index", index)
             if (args.kappa == None):
                 kappa = float(input('Value of K? '))
+            else:
+                kappa = args.kappa
     else:
         poly = False
 
@@ -182,7 +183,7 @@ for fff in args.files:
                         folders  = [f for f in os.listdir(os.path.join(basedir, fA1, fA2, fB))  if os.path.isdir(os.path.join(basedir, fA1, fA2, fB, f))]
                         folders.sort()
                         # inside these folders there are the actual data
-                        # Iterate over folders
+              n          # Iterate over folders
                         for d in folders:
                             # Iterate over data files
                             for df in datafiles:
@@ -360,19 +361,28 @@ for fff in args.files:
                                 rratiopath = os.path.join(path_folder, "rratio.dat")
                                 rratiofile = open(rratiopath, "w")
                             for f in files:
-                                    with open(os.path.join(path_folder, f), 'r') as ff:
-                                        data = ff.readline().strip().split()
-                                        if (args.energy):    print(float(data[0])*1.e-15,  file = energyfile)
-                                        if (args.maxenergy): print(float(data[1])*1.e-15,  file = maxenergyfile)
-                                        if (args.gmass):     print(data[2],  file = gmassfile)
-                                        if (args.rmass):     print(data[3],  file = rmassfile)
-                                        if (args.jmoment):   print(data[4],  file = jmomentfile)
-                                        if (args.twratio):   print(data[5],  file = twratiofile)
-                                        if (args.comega):    print(data[6],  file = comegafile)
-                                        if (args.maxomega):  print(data[7],  file = maxomegafile)
-                                        if (args.eomega):    print(data[8],  file = eomegafile)
-                                        if (args.radius):    print(data[10], file = radiusfile)
-                                        if (args.rratio):    print(data[15], file = rratiofile)
+                                with open(os.path.join(basedir, f), 'r') as ff:
+                                    data = ff.readline().strip().split()
+                                    if (args.energy):    print(energy_poly_to_cgs(data[0], index, kappa, poly),
+                                                               file = energyfile)
+                                    if (args.maxenergy): print(energy_poly_to_cgs(data[1], index, kappa, poly),
+                                                               file = maxenergyfile)
+                                    if (args.gmass):     print(mass_poly_to_dimensionless(data[2], index, kappa, poly),
+                                                               file = gmassfile)
+                                    if (args.rmass):     print(mass_poly_to_dimensionless(data[3], index, kappa, poly),
+                                                               file = rmassfile)
+                                    if (args.jmoment):   print(jmoment_poly_to_dimensionless(data[4], index, kappa, poly),
+                                                               file = jmomentfile)
+                                    if (args.twratio):   print(data[5],  file = twratiofile)
+                                    if (args.comega):    print(omega_poly_to_cgs(data[6], index, kappa, poly),
+                                                               file = comegafile)
+                                    if (args.maxomega):  print(omega_poly_to_cgs(data[7], index, kappa, poly),
+                                                               file = maxomegafile)
+                                    if (args.eomega):    print(omega_poly_to_cgs(data[8], index, kappa, poly),
+                                                               file = eomegafile)
+                                    if (args.radius):    print(radius_poly_to_si(data[10], index, kappa, poly),
+                                                               file = radiusfile)
+                                    if (args.rratio):    print(data[15], file = rratiofile)
                             if (args.energy):
                                 energyfile.close()
                                 print("Written ", energypath)
