@@ -4,9 +4,9 @@
 
 # Author: Gabriele Bozzola (sbozzolo)
 # Email: sbozzolator@gmail.com
-# Version: 2.0
+# Version: 2.1
 # First Stable: 13/03/17
-# Last Edit: 10/04/17
+# Last Edit: 16/05/17
 
 import argparse
 import sys
@@ -417,6 +417,44 @@ labels = {
     'radius'    : "Equatorial Radius $R_e~[\si{\km}]$",
     'rratio'    : "Polar Equatorial Ratio",
 }
+
+
+G     = 6.673e-11   # m^3/(kg s^2)
+c     = 299792458   # m/s
+M_sun = 1.98892e30  # kg
+
+CU_to_dens = c*c*c*c*c*c / (G*G*G * M_sun*M_sun) # kg/m^3
+CU_to_dens_CGS = CU_to_dens *1000/100**3         # g/cm^3
+
+ax2 = ax.twiny()
+
+if (args.xaxis == "energy"):
+    new_tick_locations = ax.get_xticks()
+    ax2.set_xlim(ax.get_xlim())
+    ax2.set_xticks(new_tick_locations)
+    ax2.set_xticklabels((new_tick_locations)/CU_to_dens_CGS*1e18)
+    ax2.set_xlabel("Dimensionless Central Energy $[\num{1e-3}]$")
+
+if (args.xaxis == "maxenergy"):
+    new_tick_locations = ax.get_xticks()
+    ax2.set_xlim(ax.get_xlim())
+    ax2.set_xticks(new_tick_locations)
+    ax2.set_xticklabels((new_tick_locations)/CU_to_dens_CGS*1e18)
+    ax2.set_xlabel("Dimensionless Max Energy $[\num{1e-3}]$")
+
+if (args.yaxis == "energy"):
+    new_tick_locations = ax.get_yticks()
+    ax2.set_ylim(ax.get_ylim())
+    ax2.set_yticks(new_tick_locations)
+    ax2.set_yticklabels((new_tick_locations)/CU_to_dens_CGS*1e18)
+    ax2.set_ylabel("Dimensionless Central Energy $[\num{1e-3}]$")
+
+if (args.xaxis == "maxenergy"):
+    new_tick_locations = ax.get_yticks()
+    ax2.set_ylim(ax.get_ylim())
+    ax2.set_yticks(new_tick_locations)
+    ax2.set_yticklabels((new_tick_locations)/CU_to_dens_CGS*1e18)
+    ax2.set_ylabel("Dimensionless Max Energy $[\num{1e-3}]$")
 
 siunitx_ticklabels(ax)
 ax.set_xlabel(labels[args.xaxis])

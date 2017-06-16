@@ -361,7 +361,7 @@ for fff in args.files:
                                 rratiopath = os.path.join(path_folder, "rratio.dat")
                                 rratiofile = open(rratiopath, "w")
                             for f in files:
-                                with open(os.path.join(basedir, f), 'r') as ff:
+                                with open(os.path.join(path_folder, f), 'r') as ff:
                                     data = ff.readline().strip().split()
                                     if (args.energy):    print(energy_poly_to_cgs(data[0], index, kappa, poly),
                                                                file = energyfile)
