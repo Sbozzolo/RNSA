@@ -26,10 +26,8 @@ CU_to_s    = (M_sun*G/(c*c*c))                   # s
 CU_to_dens = c*c*c*c*c*c / (G*G*G * M_sun*M_sun) # kg/m^3
 CU_to_dens_CGS = CU_to_dens *1000/100**3         # g/cm^3
 
-
-
 def energy_cgs_to_poly(energy, index, kappa):
-    return str(float(energy + "e15")*(np.power(kappa, index)*CU_to_dens_CGS))
+    return str(float(energy + "e15")/(CU_to_dens_CGS)*np.power(kappa, index))
 
 def mass_dimensionless_to_poly(mass, index, kappa):
     return str(float(mass)/np.power(kappa, index/2))
@@ -134,14 +132,15 @@ for d in newbasedirs:
             else:
                 if (run[2] == "M"):
                     task = "1"
-                    if (poly): pvalue = mass_dimensionless_to_poly(pvalue, index, kappa)
+                    if (poly): pvalue = mass_dimensionless_to_poly(run[3], index, kappa)
                 if (run[2] == "J"):
                     task = "2"
-                    if (poly): pvalue = jmoment_dimensionless_to_poly(pvalue, index, kappa)
+                    if (poly): pvalue = jmoment_dimensionless_to_poly(run[3], index, kappa)
 
-                if (not poly): cmd = exec_path + " -c 0.5 -d 0 -f " + eos_path + " -n 1 -s " + task + " -e " + run[0] + "e15 -p " + run[3]
+                if (not poly):
+                    cmd = exec_path + " -c 0.5 -d 0 -f " + eos_path + " -n 1 -s " + task + " -e " + run[0] + "e15 -p " + run[3]
                 else:
-                    cmd = exec_path + " -c 0.5 -d 0 -q poly -N " + str(index) + " -n 1 -s " + task + " -e " +  energy_cgs_to_poly(run[0]) + "e15 -p " + pvalue
+                    cmd = exec_path + " -c 0.5 -d 0 -q poly -N " + str(index) + " -n 1 -s " + task + " -e " +  energy_cgs_to_poly(run[0], index, kappa) + "e15 -p " + pvalue
                 # Add differential rotation one parameter in case
                 if (not run[5] == "0.0"): cmd += " -R diff -A {}".format(run[5])
                 # Add differential rotation three parameters in case
