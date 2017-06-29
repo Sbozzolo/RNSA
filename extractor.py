@@ -141,7 +141,7 @@ for fff in args.files:
 
     if ((re.match('p[0-9]\.[0-9]', newbasedir)) is not None):
         poly = True
-        index = float(newbasedir[1:3])
+        index = float(newbasedir[1:4])
         if (not args.clean):
             print("Found Polytrope with index", index)
             if (args.kappa == None):

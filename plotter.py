@@ -433,28 +433,28 @@ if (args.xaxis == "energy"):
     ax2.set_xlim(ax.get_xlim())
     ax2.set_xticks(new_tick_locations)
     ax2.set_xticklabels((new_tick_locations)/CU_to_dens_CGS*1e18)
-    ax2.set_xlabel("Dimensionless Central Energy $[\num{1e-3}]$")
+    ax2.set_xlabel("Dimensionless Central Energy $[\\num{e3}]$")
 
 if (args.xaxis == "maxenergy"):
     new_tick_locations = ax.get_xticks()
     ax2.set_xlim(ax.get_xlim())
     ax2.set_xticks(new_tick_locations)
     ax2.set_xticklabels((new_tick_locations)/CU_to_dens_CGS*1e18)
-    ax2.set_xlabel("Dimensionless Max Energy $[\num{1e-3}]$")
+    ax2.set_xlabel("Dimensionless Max Energy $[\\num{e3}]$")
 
 if (args.yaxis == "energy"):
     new_tick_locations = ax.get_yticks()
     ax2.set_ylim(ax.get_ylim())
     ax2.set_yticks(new_tick_locations)
     ax2.set_yticklabels((new_tick_locations)/CU_to_dens_CGS*1e18)
-    ax2.set_ylabel("Dimensionless Central Energy $[\num{1e-3}]$")
+    ax2.set_ylabel("Dimensionless Central Energy $[\\num{e3}]$")
 
 if (args.xaxis == "maxenergy"):
     new_tick_locations = ax.get_yticks()
     ax2.set_ylim(ax.get_ylim())
     ax2.set_yticks(new_tick_locations)
     ax2.set_yticklabels((new_tick_locations)/CU_to_dens_CGS*1e18)
-    ax2.set_ylabel("Dimensionless Max Energy $[\num{1e-3}]$")
+    ax2.set_ylabel("Dimensionless Max Energy $[\\num{e3}]$")
 
 siunitx_ticklabels(ax)
 ax.set_xlabel(labels[args.xaxis])
