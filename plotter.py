@@ -4,7 +4,7 @@
 
 # Author: Gabriele Bozzola (sbozzolo)
 # Email: sbozzolator@gmail.com
-# Version: 2.1
+# Version: 2.5
 # First Stable: 13/03/17
 # Last Edit: 16/05/17
 
@@ -18,6 +18,18 @@ import numpy as np
 import warnings
 # Ignore polyfit warning
 warnings.simplefilter('ignore', np.RankWarning)
+
+def mass_poly_to_dimensionless(mass, index, kappa, poly):
+    if (not poly):
+        return float(mass)
+    else:
+        return float(mass)*np.power(kappa, index/2)
+
+def jmoment_poly_to_dimensionless(jmoment, index, kappa, poly):
+    if (not poly):
+        return float(jmoment)
+    else:
+        return float(jmoment)*np.power(kappa, index)
 
 # Parse arguments
 
@@ -40,6 +52,8 @@ group1.add_argument("-o", "--output", help = "produce a numerical output", actio
 parser.add_argument("-l", "--latex", help = "export to PGF", action = "store_true")
 parser.add_argument("-n", "--name", help = "save name", type = str)
 parser.add_argument("-t", "--title", help = "set title", type = str)
+parser.add_argument("-k", "--kappa", help = "polytropic kappa",
+                    action = "store", type = float)
 
 parser.add_argument('--version', action='version', version='%(prog)s 2.0')
 
@@ -48,7 +62,6 @@ if (len(sys.argv) == 1):
     sys.exit(1)
 
 args = parser.parse_args()
-
 
 # Matplotlib options, taken from
 # https://github.com/MaxNoe/python-plotting/blob/master/source/siunitx_ticks.py
@@ -193,6 +206,19 @@ if (not args.files == None):
 
         basedir = os.path.join(oldbasedir, dirs)
 
+        basedir = os.path.join(oldbasedir, dirs)
+
+        if ((re.match('p[0-9]\.[0-9]', dirs)) is not None):
+            polytrop = True
+            index = float(dirs[1:4])
+            print("Found Polytrope with index", index)
+            if (args.kappa == None):
+                kappa = float(input('Value of K? '))
+            else:
+                kappa = args.kappa
+        else:
+            polytrop = False
+
         if (out):
             # Outfile contains the location of the turning points in easily readable
             # format (is basically the STDOUT)
@@ -260,8 +286,12 @@ if (not args.files == None):
                             run = d.split('_')
 
                             if(out and not notur):
-                                print("A1 = {}, A2 = {}, B = {}, {} = {}".format(run[2], run[4], run[6], run[11], run[12]))
-                                print("A1 = {}, A2 = {}, B = {}, {} = {}".format(run[2], run[4], run[6], run[11], run[12]),
+                                if (run[11] == "J"):
+                                    out_12 = jmoment_poly_to_dimensionless(run[12], index, kappa, polytrop)
+                                if (run[11] == "M"):
+                                    out_12 = mass_poly_to_dimensionless(run[12], index, kappa, polytrop)
+                                print("A1 = {}, A2 = {}, B = {}, {} = {}".format(run[2], run[4], run[6], run[11], out_12))
+                                print("A1 = {}, A2 = {}, B = {}, {} = {}".format(run[2], run[4], run[6], run[11], out_12),
                                       file = outfile)
 
                             # Perform interpolation
@@ -316,8 +346,12 @@ if (not args.files == None):
                                         if (out):
                                             print("x = {}, y = {}".format(x_crit[0], y_crit[0]))
                                             print("x = {}, y = {}".format(x_crit[0], y_crit[0]), file = outfile)
+                                            if (run[11] == "J"):
+                                                out_12 = jmoment_poly_to_dimensionless(run[12], index, kappa, polytrop)
+                                            if (run[11] == "M"):
+                                                out_12 = mass_poly_to_dimensionless(run[12], index, kappa, polytrop)
                                             print("{} {} {} {} {} {} {} {} {} {}".format(x_crit[0], y_crit[0],
-                                                                                      run[11], run[12], "A1",
+                                                                                      run[11], out_12, "A1",
                                                                                       run[2], "A2", run[4],
                                                                                       "B", run[6]), file = tourfile)
                                     elif user_input == '2':
@@ -326,10 +360,15 @@ if (not args.files == None):
                                         if (out):
                                             print("x = {}, y = {}".format(x_crit[1], y_crit[1]))
                                             print("x = {}, y = {}".format(x_crit[1], y_crit[1]), file = outfile)
+                                            if (run[11] == "J"):
+                                                out_12 = jmoment_poly_to_dimensionless(run[12], index, kappa, polytrop)
+                                            if (run[11] == "M"):
+                                                out_12 = mass_poly_to_dimensionless(run[12], index, kappa, polytrop)
                                             print("{} {} {} {} {} {} {} {} {} {}".format(x_crit[1], y_crit[1],
-                                                                                      run[11], run[12], "A1",
+                                                                                      run[11], out_12, "A1",
                                                                                       run[2], "A2", run[4],
                                                                                       "B", run[6]), file = tourfile)
+
                                     # Ignore the point (safest solution)
                                     elif user_input == '3':
                                         pass
@@ -349,8 +388,12 @@ if (not args.files == None):
                                             if (out):
                                                 print("x = {}, y = {}".format(x_crit[k], y_crit[k]))
                                                 print("x = {}, y = {}".format(x_crit[k], y_crit[k]), file = outfile)
+                                                if (run[11] == "J"):
+                                                    out_12 = jmoment_poly_to_dimensionless(run[12], index, kappa, polytrop)
+                                                if (run[11] == "M"):
+                                                    out_12 = mass_poly_to_dimensionless(run[12], index, kappa, polytrop)
                                                 print("{} {} {} {} {} {} {} {} {} {}".format(x_crit[k], y_crit[k],
-                                                                                      run[11], run[12], "A1",
+                                                                                      run[11], out_12, "A1",
                                                                                       run[2], "A2", run[4],
                                                                                       "B", run[6]), file = tourfile)
 

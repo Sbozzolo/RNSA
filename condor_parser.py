@@ -345,7 +345,7 @@ for q in range(0, na1):
 
                 for i in range(0, n):
                     # no verbose, relaxation
-                    arguments = "-c 0.5 -d 0"
+                    arguments = "-c 0.8 -d 0"
                     # eos
                     if (tab_eos):
                         arguments += " -f " + eos_path

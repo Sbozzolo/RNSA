@@ -26,6 +26,37 @@ CU_to_s    = (M_sun*G/(c*c*c))                   # s
 CU_to_dens = c*c*c*c*c*c / (G*G*G * M_sun*M_sun) # kg/m^3
 CU_to_dens_CGS = CU_to_dens *1000/100**3         # g/cm^3
 
+
+def energy_poly_to_cgs(energy, index, kappa, poly):
+    if (not poly):
+        return float(energy)
+    else:
+        return float(energy)/np.power(kappa, index)*CU_to_dens_CGS
+
+def mass_poly_to_dimensionless(mass, index, kappa, poly):
+    if (not poly):
+        return float(mass)
+    else:
+        return float(mass)*np.power(kappa, index/2)
+
+def jmoment_poly_to_dimensionless(jmoment, index, kappa, poly):
+    if (not poly):
+        return float(jmoment)
+    else:
+        return float(jmoment)*np.power(kappa, index)
+
+def omega_poly_to_cgs(omega, index, kappa, poly):
+    if (not poly):
+        return float(omega)
+    else:
+        return float(omega)/np.power(kappa, index/2)*CU_to_s
+
+def radius_poly_to_si(radius, index, kappa, poly):
+    if (not poly):
+        return float(radius)
+    else:
+        return float(radius)*np.power(kappa, index/2)*CU_to_km
+
 def energy_cgs_to_poly(energy, index, kappa):
     return str(float(energy + "e15")/(CU_to_dens_CGS)*np.power(kappa, index))
 
@@ -149,6 +180,8 @@ for d in newbasedirs:
 
             # Save results the try statement is required in case RNS's output value is not 0
             try:
+                # Remove T, W from the results
+                cmd += "| grep -v 'T=' | grep -v 'W='"
                 result = subprocess.check_output(cmd, shell = True)
                 result = result.decode("utf-8")
             except Exception:
@@ -176,4 +209,24 @@ for d in newbasedirs:
 
                 # Write result on a generic file A_value
                 with open(os.path.join(homedir, args.file, d, prefix_file), 'a') as o:
-                    print(result, file = o)
+                    try:
+                        result_int[0] = energy_poly_to_cgs(result_int[0], index, kappa, poly)
+                        result_int[1] = energy_poly_to_cgs(result_int[1], index, kappa, poly)
+                        result_int[2] = mass_poly_to_dimensionless(result_int[2], index, kappa, poly)
+                        result_int[3] = mass_poly_to_dimensionless(result_int[3], index, kappa, poly)
+                        result_int[4] = jmoment_poly_to_dimensionless(result_int[4], index, kappa, poly)
+                        result_int[5] = result_int[5]
+                        result_int[6] = omega_poly_to_cgs(result_int[6], index, kappa, poly)
+                        result_int[7] = omega_poly_to_cgs(result_int[7], index, kappa, poly)
+                        result_int[8] = omega_poly_to_cgs(result_int[8], index, kappa, poly)
+                        result_int[9] = omega_poly_to_cgs(result_int[9], index, kappa, poly)
+                        result_int[10] = radius_poly_to_si(result_int[10], index, kappa, poly)
+                        result_int[11] = radius_poly_to_si(result_int[11], index, kappa, poly)
+                        result_int[12] = result_int[12]
+                        result_int[13] = result_int[13]
+                        result_int[14] = result_int[14]
+                        result_int[15] = result_int[15]
+                        result_fin = str.join(' ', [str(x) for x in result_int])
+                        print(result_fin, file = o)
+                    except:
+                        pass
